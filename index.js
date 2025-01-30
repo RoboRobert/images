@@ -112,73 +112,67 @@ function uniform_quant(data, target) {
     }
 }
 
-class Popularity {
-    value;
+class Color {
+    red;
+    green;
+    blue;
+
     occurrences;
 
-    constructor(value, occurrences) {
-        this.value = value;
+    constructor(red, green, blue, occurrences) {
+        this.red = red;
+        this.green = green;
+        this.blue = blue;
         this.occurrences = occurrences;
     }
 }
 
 // Maps an input to its closest neighbor out of n closest occurrences
-function pop_map(input, n, occurrences) {
-    let dist = 10000;
-    let nearest = input;
-    for(var i = 0; i < n; i++) {
-        distance = Math.abs(occurrences[i].value-input)
+function pop_map(red, green, blue, n, occurrences) {
+    let color = [red,green,blue];
+    let dist = 1000000;
+    for(var i = 0; (i < occurrences.length && i < n); i++){
+        let r = occurrences[i].red;
+        let g = occurrences[i].green;
+        let b = occurrences[i].blue;
+        let distance = Math.pow(red-r) + Math.pow(green-g) + Math.pow(blue - b);
         if(distance < dist) {
-            nearest = occurrences[i].value;
             dist = distance;
+            color = [r,g,b];
         }
     }
-    
-    return nearest;
+
+    return color;
 }
 
 // Popularity-based quantizer.
 // Data is an array of pixels, target is the number of bits of color depth to target.
 // Assumes the incoming image has 24-bit color depth
 function popularity_quant(data, target) {
-    let green_bits =  Math.ceil(target/3);
-    let red_bits = Math.ceil((target-green_bits)/2);
-    let blue_bits =  target-red_bits-green_bits;
-
-    let red_map = new Array()
-    let green_map = new Array()
-    let blue_map = new Array()
-
-    for(var i = 0; i < 256; i++) {
-        red_map.push(new Popularity(i,0));
-        green_map.push(new Popularity(i,0));
-        blue_map.push(new Popularity(i,0));
-    }
-
-    // Counts common occurrences
-    for(var i = 0; i < data.length; i += 4) {
-        red_map[data[i]].occurrences += 1;
-        green_map[data[i+1]].occurrences += 1;
-        blue_map[data[i+2]].occurrences += 1;
-    }
-
-    red_map.sort((a,b) => a.occurrences < b.occurrences);
-    blue_map.sort((a,b) => a.occurrences < b.occurrences);
-    green_map.sort((a,b) => a.occurrences < b.occurrences);
-
-    console.log(red_map);
-    console.log(green_map);
-    console.log(blue_map);
+    let color_arr = new Array();
 
     for(var i = 0; i < data.length; i += 4) {
         let red = data[i];
         let green = data[i+1];
         let blue = data[i+2];
 
-        data[i] = pop_map(red, Math.pow(2, red_bits), red_map);
-        data[i+1] = pop_map(green, Math.pow(2, green_bits), green_map);
-        data[i+2] = pop_map(blue, Math.pow(2, blue_bits), blue_map);
+        let color = new Color(red,green,blue);
+        if(!color_arr.some(e => e.red === red && e.green === green && e.blue === blue)) {
+            color_arr.push(color);
+        }
+    }
 
-        // console.log(data[i], data[i+1], data[i+2]);
+    console.log(color_arr);
+
+    for(var i = 0; i < data.length; i += 4) {
+        let red = data[i];
+        let green = data[i+1];
+        let blue = data[i+2];
+
+        let colors = pop_map(red, green, blue, Math.pow(2, target), color_arr);
+
+        data[i] = colors[0];
+        data[i+1] = colors[1];
+        data[i+2] = colors[2];
     }
 }
