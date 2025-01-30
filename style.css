@@ -1,0 +1,42 @@
+body {
+    background-color: #f2f2f2;
+    margin: 0;
+    height: 100vh;
+    /* Full viewport height */
+    display: flex;
+    justify-content: center;
+    /* align-items: center; */
+    font-family: Arial, sans-serif;
+}
+
+/* Container to center the divs */
+.container {
+    display: flex;
+    flex-direction: column;
+    /* Stack items vertically */
+    align-items: center;
+    /* Center items horizontally */
+    gap: 10px;
+    /* Space between boxes */
+
+    padding-bottom: 50px;
+}
+
+canvas {
+    border: 2px solid black;
+    margin-top: 10px;
+    height: 500px;
+    width: 500px;
+}
+
+button {
+    margin-top: 20px;
+    height: 50px;
+    width: 100px;
+}
+
+select {
+    margin-top: 20px;
+    height: 50px;
+    width: 200px;
+}

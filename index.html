@@ -6,53 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A simple Image Processor</title>
     <script src="index.js" defer></script>
-    <style>
-        body {
-            margin: auto;
-            flex-direction: column;
-            display: flex;
-            margin-left: 50%;
-        }
-
-        canvas {
-            border: 1px solid black;
-            margin-top: 10px;
-            height: 200px;
-            width: 200px;
-        }
-
-        button {
-            margin-top: 20px;
-            height:50px;
-            width: 100px;
-        }
-        
-        select {
-            margin-top: 20px;
-            height:50px;
-            width: 200px;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
-<h1>Image Quantizer</h1>
+<div class="container">
+    <h1>Image Quantizer</h1>
 
-<input id="image-selector" type="file" accept="image/PNG">
+    <input id="image-selector" type="file" accept="image/PNG">
 
-<canvas id="startCanvas">
-</canvas>
+    <canvas id="startCanvas">
+    </canvas>
 
-<canvas id="editedCanvas">
-</canvas>
+    <canvas id="editedCanvas">
+    </canvas>
 
-<select>
-    <option value="quantize-1">Uniform Quantizer</option>
-    <option value="quantize-2">Popularity-based Quantizer</option>
-    <option value="quantize-3">Median Cut Quantizer</option>
-    <option value="quantize-4">Josh Quantizer</option>
-    <option value="dither-1">Ordered Dither</option>
-</select>
+    <select id="operation-type">
+        <option value=1 selected>Uniform Quantizer</option>
+        <option value=2>Popularity-based Quantizer</option>
+        <option value=3>Median Cut Quantizer</option>
+        <option value=4>Josh Quantizer</option>
+        <option value=5>Ordered Dither</option>
+    </select>
 
-<button id="quantizer">Modify Image</button>
+    <button id="modifier">Modify Image</button>
+</div>
 
 </html>
