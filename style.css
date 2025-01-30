@@ -35,8 +35,14 @@ button {
     width: 100px;
 }
 
-select {
+.big-select {
     margin-top: 20px;
     height: 50px;
     width: 200px;
+}
+
+.small-select {
+    margin-top: 20px;
+    height: 50px;
+    width: 75px;
 }
