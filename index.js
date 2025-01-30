@@ -8,7 +8,7 @@ var operation_type = document.getElementById("operation-type");
 var num_bits = document.getElementById("num-bits");
 var grayscale = document.getElementById("grayscale");
 
-draw_image("test.png");
+// draw_image("test.png");
 
 const ops = {
     UNIFORM_QUANT : 1,
@@ -18,6 +18,8 @@ const ops = {
     ORDERED_DITHER: 5,
     FLOYD_DITHER : 6,
 }
+
+const width = canvas.width;
 
 // Averages three values
 function average(x,y,z) {
@@ -85,6 +87,21 @@ document.getElementById("modifier").addEventListener('click', function(event) {
     editedctx.putImageData(imageData, 0, 0);
 });
 
+class Color {
+    red;
+    green;
+    blue;
+
+    occurrences;
+
+    constructor(red, green, blue, occurrences) {
+        this.red = red;
+        this.green = green;
+        this.blue = blue;
+        this.occurrences = occurrences;
+    }
+}
+
 // Starts with a number of values, i.e. 8 bits or 256 values, and converts to some number of bits, i.e. 3 bits or 8 values
 // i.e. map(200, 8, 3) would convert to 207
 // i.e. map(20, 8, 3) would convert to 15
@@ -95,6 +112,13 @@ function map(input, start_bits, end_bits) {
     let current_chunk = Math.floor(input/chunk_size) + 0.5;
 
     return (current_chunk)*(chunk_size)-1;
+}
+
+function to_black_and_white(red, green, blue) {
+    let avg = average(red,green,blue);
+
+    let color = avg < 128 ? 0 : 255;
+    return color;
 }
 
 // Uniform quantizer.
@@ -110,9 +134,23 @@ function uniform_quant(data, target, gray_scale) {
         let green = data[i+1];
         let blue = data[i+2];
 
-        let new_red = map(red, 8, red_bits);
-        let new_green = map(green, 8, green_bits);
-        let new_blue = map(blue, 8, blue_bits);
+        let new_red = 0
+        let new_green = 0
+        let new_blue = 0
+
+        // Black and white image
+        if(target == 1) {
+            let black_or_white = to_black_and_white(red,green,blue);
+            new_red = black_or_white;
+            new_green = black_or_white;
+            new_blue = black_or_white;
+        }
+        // Any other number of bits
+        else {
+            new_red = map(red, 8, red_bits);
+            new_green = map(green, 8, green_bits);
+            new_blue = map(blue, 8, blue_bits);
+        }
 
         if(gray_scale) {
             let avg = average(new_red,new_green,new_blue);
@@ -126,21 +164,6 @@ function uniform_quant(data, target, gray_scale) {
             data[i+1] = new_green;
             data[i+2] = new_blue;
         }
-    }
-}
-
-class Color {
-    red;
-    green;
-    blue;
-
-    occurrences;
-
-    constructor(red, green, blue, occurrences) {
-        this.red = red;
-        this.green = green;
-        this.blue = blue;
-        this.occurrences = occurrences;
     }
 }
 
@@ -214,14 +237,16 @@ const bayer_pattern =   [   //  16x16 Bayer Dithering Matrix.  Color levels: 256
 const dx = 16;
 const dy = 16;
 
-const width = canvas.width;
-
 // Ordered dither algorithm.
 // Converts a color image into a black and white dither
 function ordered_dither(data, target, gray_scale) {
-    var j = -1;
+    let green_bits =  Math.ceil(target/3);
+    let red_bits = Math.ceil((target-green_bits)/2);
+    let blue_bits =  target-red_bits-green_bits;
+
+    var j = 0;
     for(var i = 0; i < data.length; i += 4) {
-        if((i/4)%width == 0) {
+        if(i != 0 && (i/4)%width == 0) {
             j += 1;
         }
 
@@ -229,9 +254,23 @@ function ordered_dither(data, target, gray_scale) {
         let green = data[i+1];
         let blue = data[i+2];
 
-        let new_red = red < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
-        let new_green = green < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
-        let new_blue = blue < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+        let new_red = 0
+        let new_green = 0
+        let new_blue = 0
+
+        // Black and white image
+        if(target == 1) {
+            let avg = average(red,green,blue);
+            new_red = avg < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+            new_green = avg < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+            new_blue = avg < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+        }
+        // Any other number of bits
+        else {
+            new_red = red < bayer_pattern[(i/4)%dx][j%dy] ? 0 : map(red, 8, red_bits);
+            new_green = green < bayer_pattern[(i/4)%dx][j%dy] ? 0 : map(red, 8, green_bits);
+            new_blue = blue < bayer_pattern[(i/4)%dx][j%dy] ? 0 : map(red, 8, blue_bits);
+        }
 
         if(gray_scale) {
             let avg = average(new_red,new_green,new_blue);
@@ -251,26 +290,81 @@ function ordered_dither(data, target, gray_scale) {
 // Floyd-Steinberg dither algorithm.
 // Uses error-diffusion to produce a different result
 function floyd_dither(data, target, gray_scale) {
-    var j = -1;
-    for(var i = 0; i < data.length; i += 4) {
-        if((i/4)%width == 0) {
+    let green_bits =  Math.ceil(target/3);
+    let red_bits = Math.ceil((target-green_bits)/2);
+    let blue_bits =  target-red_bits-green_bits;
+
+    let forward = true;
+
+    var i = 0;
+    var j = 0;
+    while(i < data.length) {
+        if(i != 0 && (i/4)%width == 0) {
+            i += width*4;
             j += 1;
+            forward = !forward;
         }
 
         let red = data[i];
         let green = data[i+1];
         let blue = data[i+2];
 
-        if(red > bayer_pattern[(i/4)%dx][j%dy])
+        let new_red = 0
+        let new_green = 0
+        let new_blue = 0
 
-        if(average(red,green,blue) > bayer_pattern[(i/4)%dx][j%dy]) {
-            data[i] = 255;
-            data[i+1] = 255;
-            data[i+2] = 255;
-        } else {
-            data[i] = 0;
-            data[i+1] = 0;
-            data[i+2] = 0;
+        // Black and white image
+        if(target == 1) {
+            let avg = average(red,green,blue);
+            new_red = avg < 128 ? 0 : 255;
+            new_green = avg < 128 ? 0 : 255;
+            new_blue = avg < 128 ? 0 : 255;
         }
+        // Any other number of bits
+        else {
+            new_red = map(red, 8, red_bits);
+            new_green = map(red, 8, green_bits);
+            new_blue = map(red, 8, blue_bits);
+        }
+
+        if(gray_scale) {
+            let avg = average(new_red,new_green,new_blue);
+            data[i] = avg;
+            data[i+1] = avg;
+            data[i+2] = avg;
+        }
+        
+        else {
+            data[i] = new_red;
+            data[i+1] = new_green;
+            data[i+2] = new_blue;
+        }
+
+        // Disperse errors
+        let diff_red = red - new_red;
+        let diff_green = green - new_green;
+        let diff_blue = blue - new_blue;
+
+        // Add to the right
+        data[i+4] += (diff_red)*(7/16);
+        data[i+5] += (diff_green)*(7/16);
+        data[i+6] += (diff_blue)*(7/16);
+
+        // Add lower left
+        data[i-4+(width*4)] += (diff_red)*(3/16);
+        data[i-3+(width*4)] += (diff_green)*(3/16);
+        data[i-2+(width*4)] += (diff_blue)*(3/16);
+        
+        // Add directly below
+        data[i+(width*4)] += (diff_red)*(5/16);
+        data[i+1+(width*4)] += (diff_green)*(5/16);
+        data[i+2+(width*4)] += (diff_blue)*(5/16);
+
+        // Add below to the right
+        data[i+4+(width*4)] += (diff_red)*(1/16);
+        data[i+5+(width*4)] += (diff_green)*(1/16);
+        data[i+6+(width*4)] += (diff_blue)*(1/16);
+
+        i += forward ? 4 : -4;
     }
 }
