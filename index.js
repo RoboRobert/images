@@ -6,6 +6,7 @@ const editedctx = editedCanvas.getContext("2d");
 
 var operation_type = document.getElementById("operation-type");
 var num_bits = document.getElementById("num-bits");
+var grayscale = document.getElementById("grayscale");
 
 // draw_image("test.png");
 
@@ -16,6 +17,11 @@ const ops = {
     JOSH_QUANT: 4,
     ORDERED_DITHER: 5,
     FLOYD_DITHER : 6,
+}
+
+// Averages three values
+function average(x,y,z) {
+    return (x+y+z)/3;
 }
 
 // Detects when an image has been selected by the user and displays it in the first canvas box
@@ -46,6 +52,7 @@ function draw_image(source) {
 document.getElementById("modifier").addEventListener('click', function(event) {
     let operation = operation_type.value;
     let number_bits = Number(num_bits.value);
+    let gray_scale = grayscale.value === "true";
 
     var imageData = ctx.getImageData(0,0, canvas.width, canvas.height);
 
@@ -53,10 +60,10 @@ document.getElementById("modifier").addEventListener('click', function(event) {
 
     switch (Number(operation)) {
         // Uniform quantization
-        case ops.UNIFORM_QUANT : data = uniform_quant(data, number_bits); break;
+        case ops.UNIFORM_QUANT : data = uniform_quant(data, number_bits, gray_scale); break;
 
         // Population-based quantization
-        case ops.POP_QUANT :data = popularity_quant(data, number_bits); break;
+        case ops.POP_QUANT :data = popularity_quant(data, number_bits, gray_scale); break;
 
         // median cut quantization
         case ops.MEDIAN_QUANT : console.log("QUANT 3"); break;
@@ -65,10 +72,10 @@ document.getElementById("modifier").addEventListener('click', function(event) {
         case ops.JOSH_QUANT : console.log("QUANT 4"); break;
 
         // Ordered dithering
-        case ops.ORDERED_DITHER : ordered_dither(data, number_bits); break;
+        case ops.ORDERED_DITHER : ordered_dither(data, number_bits, gray_scale); break;
 
         // Error-diffusion dithering
-        case ops.FLOYD_DITHER : floyd_dither(data, number_bits); break;
+        case ops.FLOYD_DITHER : floyd_dither(data, number_bits, gray_scale); break;
 
         default: console.error("OOPS!");
     }
@@ -93,21 +100,32 @@ function map(input, start_bits, end_bits) {
 // Uniform quantizer.
 // Data is an array of pixels, target is the number of bits of color depth to target.
 // Assumes the incoming image has 24-bit color depth
-function uniform_quant(data, target) {
+function uniform_quant(data, target, gray_scale) {
     let green_bits =  Math.ceil(target/3);
     let red_bits = Math.ceil((target-green_bits)/2);
     let blue_bits =  target-red_bits-green_bits;
-
-    console.log(red_bits,green_bits,blue_bits);
 
     for(var i = 0; i < data.length; i += 4) {
         let red = data[i];
         let green = data[i+1];
         let blue = data[i+2];
 
-        data[i] = map(red, 8, red_bits);
-        data[i+1] = map(green, 8, green_bits);
-        data[i+2] = map(blue, 8, blue_bits);
+        let new_red = map(red, 8, red_bits);
+        let new_green = map(green, 8, green_bits);
+        let new_blue = map(blue, 8, blue_bits);
+
+        if(gray_scale) {
+            let avg = average(new_red,new_green,new_blue);
+            data[i] = avg;
+            data[i+1] = avg;
+            data[i+2] = avg;
+        }
+        
+        else {
+            data[i] = new_red;
+            data[i+1] = new_green;
+            data[i+2] = new_blue;
+        }
     }
 }
 
@@ -147,7 +165,7 @@ function pop_map(red, green, blue, n, occurrences) {
 // Popularity-based quantizer.
 // Data is an array of pixels, target is the number of bits of color depth to target.
 // Assumes the incoming image has 24-bit color depth
-function popularity_quant(data, target) {
+function popularity_quant(data, target, gray_scale) {
     let color_arr = new Array();
 
     for(var i = 0; i < data.length; i += 4) {
@@ -160,8 +178,6 @@ function popularity_quant(data, target) {
             color_arr.push(color);
         }
     }
-
-    console.log(color_arr);
 
     for(var i = 0; i < data.length; i += 4) {
         let red = data[i];
@@ -200,14 +216,9 @@ const dy = 16;
 
 const width = canvas.width;
 
-// Averages three values
-function average(x,y,z) {
-    return (x+y+z)/3;
-}
-
 // Ordered dither algorithm.
 // Converts a color image into a black and white dither
-function ordered_dither(data, target) {
+function ordered_dither(data, target, gray_scale) {
     var j = -1;
     for(var i = 0; i < data.length; i += 4) {
         if((i/4)%width == 0) {
@@ -218,21 +229,28 @@ function ordered_dither(data, target) {
         let green = data[i+1];
         let blue = data[i+2];
 
-        if(average(red,green,blue) > bayer_pattern[(i/4)%dx][j%dy]) {
-            data[i] = 255;
-            data[i+1] = 255;
-            data[i+2] = 255;
-        } else {
-            data[i] = 0;
-            data[i+1] = 0;
-            data[i+2] = 0;
+        let new_red = red < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+        let new_green = green < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+        let new_blue = blue < bayer_pattern[(i/4)%dx][j%dy] ? 0 : 255;
+
+        if(gray_scale) {
+            let avg = average(new_red,new_green,new_blue);
+            data[i] = avg;
+            data[i+1] = avg;
+            data[i+2] = avg;
+        }
+        
+        else {
+            data[i] = new_red;
+            data[i+1] = new_green;
+            data[i+2] = new_blue;
         }
     }
 }
 
 // Floyd-Steinberg dither algorithm.
 // Uses error-diffusion to produce a different result
-function floyd_dither(data, target) {
+function floyd_dither(data, target, gray_scale) {
     var j = -1;
     for(var i = 0; i < data.length; i += 4) {
         if((i/4)%width == 0) {
@@ -242,6 +260,8 @@ function floyd_dither(data, target) {
         let red = data[i];
         let green = data[i+1];
         let blue = data[i+2];
+
+        if(red > bayer_pattern[(i/4)%dx][j%dy])
 
         if(average(red,green,blue) > bayer_pattern[(i/4)%dx][j%dy]) {
             data[i] = 255;
