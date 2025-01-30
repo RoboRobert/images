@@ -8,7 +8,7 @@ var operation_type = document.getElementById("operation-type");
 var num_bits = document.getElementById("num-bits");
 var grayscale = document.getElementById("grayscale");
 
-// draw_image("test.png");
+draw_image("test.png");
 
 const ops = {
     UNIFORM_QUANT : 1,
