@@ -37,7 +37,6 @@ function draw_image(source) {
         ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear any previous image
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height); // Draw the image on the canvas
     };
-    img.crossOrigin = "Anonymous";
     img.src = source; // Set the image source to the loaded file
 }
 
