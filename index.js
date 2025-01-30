@@ -65,7 +65,7 @@ document.getElementById("modifier").addEventListener('click', function(event) {
         case ops.UNIFORM_QUANT : data = uniform_quant(data, number_bits, gray_scale); break;
 
         // Population-based quantization
-        case ops.POP_QUANT :data = popularity_quant(data, number_bits, gray_scale); break;
+        case ops.POP_QUANT :data = uniform_quant(data, number_bits, gray_scale); break;
 
         // median cut quantization
         case ops.MEDIAN_QUANT : console.log("QUANT 3"); break;
@@ -167,53 +167,53 @@ function uniform_quant(data, target, gray_scale) {
     }
 }
 
-// Maps an input to its closest neighbor out of n closest occurrences
-function pop_map(red, green, blue, n, occurrences) {
-    let color = [red,green,blue];
-    let dist = 1000000;
-    for(var i = 0; (i < occurrences.length && i < n); i++){
-        let r = occurrences[i].red;
-        let g = occurrences[i].green;
-        let b = occurrences[i].blue;
-        let distance = Math.pow(red-r) + Math.pow(green-g) + Math.pow(blue - b);
-        if(distance < dist) {
-            dist = distance;
-            color = [r,g,b];
-        }
-    }
+// // Maps an input to its closest neighbor out of n closest occurrences
+// function pop_map(red, green, blue, n, occurrences) {
+//     let color = [red,green,blue];
+//     let dist = 1000000;
+//     for(var i = 0; (i < occurrences.length && i < n); i++){
+//         let r = occurrences[i].red;
+//         let g = occurrences[i].green;
+//         let b = occurrences[i].blue;
+//         let distance = Math.pow(red-r) + Math.pow(green-g) + Math.pow(blue - b);
+//         if(distance < dist) {
+//             dist = distance;
+//             color = [r,g,b];
+//         }
+//     }
 
-    return color;
-}
+//     return color;
+// }
 
-// Popularity-based quantizer.
-// Data is an array of pixels, target is the number of bits of color depth to target.
-// Assumes the incoming image has 24-bit color depth
-function popularity_quant(data, target, gray_scale) {
-    let color_arr = new Array();
+// // Popularity-based quantizer.
+// // Data is an array of pixels, target is the number of bits of color depth to target.
+// // Assumes the incoming image has 24-bit color depth
+// function popularity_quant(data, target, gray_scale) {
+//     let color_arr = new Array();
 
-    for(var i = 0; i < data.length; i += 4) {
-        let red = data[i];
-        let green = data[i+1];
-        let blue = data[i+2];
+//     for(var i = 0; i < data.length; i += 4) {
+//         let red = data[i];
+//         let green = data[i+1];
+//         let blue = data[i+2];
 
-        let color = new Color(red,green,blue);
-        if(!color_arr.some(e => e.red === red && e.green === green && e.blue === blue)) {
-            color_arr.push(color);
-        }
-    }
+//         let color = new Color(red,green,blue);
+//         if(!color_arr.some(e => e.red === red && e.green === green && e.blue === blue)) {
+//             color_arr.push(color);
+//         }
+//     }
 
-    for(var i = 0; i < data.length; i += 4) {
-        let red = data[i];
-        let green = data[i+1];
-        let blue = data[i+2];
+//     for(var i = 0; i < data.length; i += 4) {
+//         let red = data[i];
+//         let green = data[i+1];
+//         let blue = data[i+2];
 
-        let colors = pop_map(red, green, blue, Math.pow(2, target), color_arr);
+//         let colors = pop_map(red, green, blue, Math.pow(2, target), color_arr);
 
-        data[i] = colors[0];
-        data[i+1] = colors[1];
-        data[i+2] = colors[2];
-    }
-}
+//         data[i] = colors[0];
+//         data[i+1] = colors[1];
+//         data[i+2] = colors[2];
+//     }
+// }
 
 const bayer_pattern =   [   //  16x16 Bayer Dithering Matrix.  Color levels: 256
     [     0, 191,  48, 239,  12, 203,  60, 251,   3, 194,  51, 242,  15, 206,  63, 254  ], 
@@ -300,9 +300,7 @@ function floyd_dither(data, target, gray_scale) {
     var j = 0;
     while(i < data.length) {
         if(i != 0 && (i/4)%width == 0) {
-            i += width*4;
             j += 1;
-            forward = !forward;
         }
 
         let red = data[i];
@@ -315,16 +313,16 @@ function floyd_dither(data, target, gray_scale) {
 
         // Black and white image
         if(target == 1) {
-            let avg = average(red,green,blue);
-            new_red = avg < 128 ? 0 : 255;
-            new_green = avg < 128 ? 0 : 255;
-            new_blue = avg < 128 ? 0 : 255;
+            let black_or_white = to_black_and_white(red,green,blue);
+            new_red = black_or_white;
+            new_green = black_or_white;
+            new_blue = black_or_white;
         }
         // Any other number of bits
         else {
             new_red = map(red, 8, red_bits);
-            new_green = map(red, 8, green_bits);
-            new_blue = map(red, 8, blue_bits);
+            new_green = map(green, 8, green_bits);
+            new_blue = map(blue, 8, blue_bits);
         }
 
         if(gray_scale) {
